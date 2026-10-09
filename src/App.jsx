@@ -7,29 +7,38 @@ function App() {
     // Stores the job description selected by the user
   const [jobDescription, setJobDescription] = useState("");
 
-  // Tells us whether the analysis is currently running
+  // Tells us whether the ai analysis is currently running or not
   // false = not analyzing
   // true  = analyzing
   const [loading, setLoading] = useState(false);
-  // Stores the analysis result
+
+  // Stores the ai analysis result received from backend
   // Initially there is no result, so we use null
-  const [result, setResult] = useState(null);
+   const [result, setResult] = useState(null);
+
+    // Stores error messages
+  const [error, setError] = useState("");
 
  
 //2. resume upload handler
+// Resume mein humne function isliye banaya kyunki file ko extract karke state mein store karna hota hain.
+// Job description mein kaam simple tha, isliye inline function use kar diya in textarea.
    // This function runs whenever the user selects a resume file.
-  
    const handleResumeChange = (e) => {
       // event.target.files contains the files selected by the user.
      // [0] means we only want the first selected file.
-      const selectedFile = event.target.files[0];
+      const selectedFile = e.target.files[0];
      // Store the selected file inside React state.
        setResume(selectedFile);
+
+        // Clear previous error
+          setError("");
   };
+
 
 //3. analyze button handler
   
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     
     //validation first,check whether the user uploaded a resume and job description where  trim() removes unnecessary spaces.
     if (!resume || !jobDescription.trim()) {
@@ -37,48 +46,58 @@ function App() {
       return;
     }
 
+     // Clear previous result and error
+    setResult(null);
+    setError("");
+
      // Start loading.
     // This will change the button text to "Analyzing..."
      setLoading(true);
 
 
-   setTimeout(() => {
+try{
+  //1. create formData
+  const formData = new FormData();
+    // Add resume PDF
+      // "resume" must match upload.single("resume")
+      // in the Express backend.
+      formData.append("resume", resume);
+    // Add job description
+      formData.append("jobDescription", jobDescription);
 
-      // Dummy result that will be displayed in the UI. bcoz right now i have no backened ,later it replace by an api call to our node.js/express backend
-      setResult({
-        score: 78,
+  // STEP 2: Send request to backend
+    const response = await fetch(
+        "http://localhost:5000/api/analyze",
+        {
+          method: "POST",
+          body: formData
+        }
+      );
 
-        matchingSkills: [
-          "React.js",
-          "JavaScript",
-          "Node.js",
-          "MongoDB",
-        ],
+  // STEP 3: Convert backend response to JSON
+     const data = await response.json();
+  
+  // STEP 4: Check whether request was successful
+    if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to analyze resume."
+        );
+      }
+  // STEP 5: Store real backend response
+     setResult(data);
 
-        missingSkills: [
-          "TypeScript",
-          "Docker",
-          "AWS",
-        ],
+  } catch(error) {
+       console.error("Frontend Error:", error);
 
-        suggestions: [
-          "Improve your project descriptions.",
-          "Highlight skills that are relevant to the job description.",
-          "Add missing skills only if you genuinely know them.",
-        ]
-
-      });
-
-      // Reset the input fields after analysis is completed
-// setResume(null);
-// setJobDescription("");
-
-
-      // Analysis is completed, so stop the loading state.
+       setError(
+        error.message ||
+        "Something went wrong while analyzing the resume."
+      );
+   } finally {
+       // Stop loading whether request succeeds or fails
       setLoading(false);
-
-    }, 1500); // Wait 1.5 seconds to simulate analysis time
-  };
+   }
+};
 
 //4. UI / JSX
 
@@ -116,7 +135,7 @@ function App() {
            {/* resume card */}
           <div className="card">
             <h2>Upload Your Resume</h2>
-            <p>Upload your PDF or DOCX resume.</p>
+            <p>Upload your PDF resume.</p>
 
             <label className="upload-box">
               <span className="upload-icon">📄</span>
@@ -128,12 +147,12 @@ function App() {
               <small>
                 {resume
                   ? "Resume selected successfully"
-                  : "PDF or DOCX files"}
+                  : "PDF files only"}
               </small>
 
               <input
                 type="file"
-                accept=".pdf,.doc,.docx"
+                accept=".pdf"
                 onChange={handleResumeChange}
               />
             </label>
@@ -149,6 +168,14 @@ function App() {
               onChange={(e) => setJobDescription(e.target.value)}
             />
 
+            {/* Error Message */}
+            {error && (
+              <p className="error-message">
+                {error}
+              </p>
+            )}
+
+          {/* Analyze Button */}
           <button
             className="analyze-btn"
             onClick={handleAnalyze}
@@ -158,6 +185,9 @@ function App() {
               ? "Analyzing..."
               : "Analyze Resume"}
           </button>
+          
+          
+          
           </div>
 
       </section>
