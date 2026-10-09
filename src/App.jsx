@@ -67,7 +67,7 @@ try{
 
   // STEP 2: Send request to backend
     const response = await fetch(
-        "http://localhost:5000/api/analyze",
+        "https://ai-resume-analyzer-dggl.onrender.com/api/analyze",
         {
           method: "POST",
           body: formData
